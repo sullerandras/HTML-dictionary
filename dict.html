@@ -1,0 +1,98 @@
+<!doctype html>
+<html xmlns:ng="http://angularjs.org/" manifest="dict.manifest" ng:app="MyApp">
+<head>
+	<meta charset="utf-8">
+	<title>Thai-Eng dictionary</title>
+	<script src="angular-0.10.6.min.js" ng:autobind></script>
+	<script src="dict-th.js"></script>
+	<style>
+		table { border-collapse: collapse; }
+		td { border: 1px solid black; }
+	</style>
+	<script>
+		var app = angular.module('MyApp', [])
+		function AppController() {
+			var scope = this
+			//dictionary is an array of objects like this:
+			//{
+			//  word: 'english',
+			//  type: 'part of speech',
+			//  meaning: 'the meaning of the word (for example "close" has multiple meanings)',
+			//  translations: [
+			//    {word: 'thai', tl: 'transliteration', qualifier: 'formal or informal'}
+			//  ]
+		 	//}
+			scope.dict = []
+			for (var i in th) {
+				var w = th[i]
+				var wordList = ' '+w.word
+				if (w.meaning) {
+					wordList += ' '+w.meaning
+				}
+				for (var j in w.translations) {
+					var t = w.translations[j]
+					var wl = wordList + ' ' + t.word
+					if (t.tl) {
+						wl += ' '+t.tl
+					}
+					var ww = {
+						word: w.word, type: w.type, meaning: w.meaning,
+						translation: {
+							word: t.word, tl: t.tl
+						},
+						wordList: wl.toLowerCase()
+					}
+					scope.dict.push(ww)
+				}
+			}
+			scope.$watch('search', function(){
+				scope.filter()
+			})
+			scope.search = ''
+			setTimeout(function(){
+				try {
+				document.getElementsByTagName('input')[0].focus()
+			} catch(e) {}
+			}, 100)
+		}
+		AppController.prototype = {
+			filter: function(){
+				var scope = this
+				var results = []
+				var search = scope.search
+				for (var i in scope.dict) {
+					var item = scope.dict[i]
+					var re = new RegExp(' '+search)
+					if (re.exec(item.wordList) != null) {
+						results.push(item)
+						if (results.length >= 50) {
+							break
+						}
+					}
+				}
+				scope.results = results
+			},
+		}
+	</script>
+</head>
+<body ng:controller="AppController" >
+	<div>
+		Search text (thai or english): <input ng:model="search">
+	</div>
+	<div>
+		Results: {{results.length}}
+		<table>
+			<tr>
+				<th>Thai</th>
+				<th>English</th>
+				<th>Meaning</th>
+			</tr>
+			<tr ng:repeat="r in results">
+				<td>{{r.translation.word + (r.translation.tl && ' ('+r.translation.tl+')' || '')}}</td>
+				<td>{{r.word + (r.type && ' ('+r.type+')' || '')}}</td>
+				<td>{{r.meaning}}</td>
+			</tr>
+		</table>
+	</div>
+</body>
+</html>
