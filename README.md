@@ -11,6 +11,7 @@ How to run the parser
 1.  Download `enwiktionary-latest-pages-articles.xml.bz2` from here (more than 200MB): [dumps](http://dumps.wikimedia.org/enwiktionary/latest/)
 2.  Uncompress it (more than 2GB)
 3.  Move it to the project folder as `wiktionary-full.txt`
-4.  Type `node parse_wiktionary.js`
-5.  It creates the file `dict-th.js` in about 6 minutes in my machine.
+4.  Run `npm install` to install the `lazy` module. If you already installed, than skip this step.
+5.  Run `node parse_wiktionary.js`
+6.  It creates the file `dict-th.js` in about 6 minutes in my machine.
 
