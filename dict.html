@@ -40,7 +40,7 @@
 						translation: {
 							word: t.word, tl: t.tl
 						},
-						wordList: wl.toLowerCase()
+						wordList: wl.toLowerCase()+' '
 					}
 					scope.dict.push(ww)
 				}
@@ -56,20 +56,40 @@
 			}, 100)
 		}
 		AppController.prototype = {
+			clone: function(obj){
+				return JSON.parse(JSON.stringify(obj))
+			},
 			filter: function(){
 				var scope = this
 				var results = []
 				var search = scope.search
 				for (var i in scope.dict) {
 					var item = scope.dict[i]
-					var re = new RegExp(' '+search)
-					if (re.exec(item.wordList) != null) {
+					var rate = 0
+					if (search == '' || item.word == search || item.translation.word == search) {
+						rate = 5
+					} else if (item.wordList.indexOf(' '+search+' ') >= 0) {
+						rate = 4
+					} else if (item.wordList.indexOf(' '+search) >= 0) {
+						rate = 3
+					} else if (item.wordList.indexOf(search+' ') >= 0) {
+						rate = 2
+					} else if (item.wordList.indexOf(search) >= 0) {
+						rate = 1
+					}
+					if (rate > 0) {
+						// item = scope.clone(item)
+						item.rate = rate
 						results.push(item)
-						if (results.length >= 50) {
-							break
-						}
 					}
 				}
+				results.sort(function(a, b){
+					if (a.rate < b.rate) return 1
+					if (a.rate > b.rate) return -1
+					if (a.word < b.word) return -1
+					if (a.word > b.word) return 1
+					return 0
+				})
 				scope.results = results
 			},
 		}
@@ -87,7 +107,7 @@
 				<th>English</th>
 				<th>Meaning</th>
 			</tr>
-			<tr ng:repeat="r in results">
+			<tr ng:repeat="r in results | limitTo:50">
 				<td>{{r.translation.word + (r.translation.tl && ' ('+r.translation.tl+')' || '')}}</td>
 				<td>{{r.word + (r.type && ' ('+r.type+')' || '')}}</td>
 				<td>{{r.meaning}}</td>
