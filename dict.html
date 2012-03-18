@@ -1,18 +1,20 @@
 <!doctype html>
-<html xmlns:ng="http://angularjs.org/" manifest="dict.manifest" ng:app="MyApp">
+<html manifest="dict.manifest" ng-app="MyApp">
 <head>
 	<meta charset="utf-8">
 	<title>Thai-Eng dictionary</title>
-	<script src="angular-0.10.6.min.js" ng:autobind></script>
+	<script src="angular-1.0.0rc1.min.js"></script>
+	<script src="latinise.js"></script>
 	<script src="dict-th.js"></script>
+	<script src="transliterator.js"></script>
 	<style>
 		table { border-collapse: collapse; }
-		td { border: 1px solid black; }
+		table.results td { border: 1px solid black; }
 	</style>
 	<script>
 		var app = angular.module('MyApp', [])
-		function AppController() {
-			var scope = this
+		AppController.$inject = ['$scope']
+		function AppController(scope) {
 			//dictionary is an array of objects like this:
 			//{
 			//  word: 'english',
@@ -25,57 +27,100 @@
 			scope.dict = []
 			for (var i in th) {
 				var w = th[i]
-				var wordList = ' '+w.word
+				var wordList = ''
+				// var wordList = ' '+w.word
 				if (w.meaning) {
 					wordList += ' '+w.meaning
 				}
 				for (var j in w.translations) {
 					var t = w.translations[j]
-					var wl = wordList + ' ' + t.word
+					// var wl = wordList + ' ' + t.word
+					var wl = wordList
 					if (t.tl) {
 						wl += ' '+t.tl
 					}
 					var ww = {
-						word: w.word, type: w.type, meaning: w.meaning,
+						word: w.word, lower_word: w.word.toLowerCase(),
+						type: w.type, meaning: w.meaning,
 						translation: {
-							word: t.word, tl: t.tl
+							word: t.word, lower_word: t.word.toLowerCase(), tl: t.tl
 						},
-						wordList: wl.toLowerCase()+' '
+						wordList: wl.toLowerCase()+' ',
+						latin_wordList: wl.toLowerCase().latinise()+' '
 					}
 					scope.dict.push(ww)
 				}
 			}
+			scope.clear = function() {
+				return AppController.prototype.clear.call(scope)
+			}
+			scope.filter = function() {
+				return AppController.prototype.filter.call(scope)
+			}
+			scope.transliteration = function() {
+				return AppController.prototype.transliteration.call(scope)
+			}
+			scope.clear()
 			scope.$watch('search', function(){
 				scope.filter()
 			})
-			scope.search = ''
-			setTimeout(function(){
-				try {
-				document.getElementsByTagName('input')[0].focus()
-			} catch(e) {}
-			}, 100)
 		}
 		AppController.prototype = {
-			clone: function(obj){
-				return JSON.parse(JSON.stringify(obj))
+			clear: function() {
+				var scope = this
+				scope.search = ''
+				setTimeout(function(){
+					try {
+						document.getElementsByTagName('input')[0].focus()
+					} catch(e) {
+					}
+				}, 100)
 			},
 			filter: function(){
 				var scope = this
 				var results = []
 				var search = scope.search
+				function fuzzyMatchWord(string, pattern) {
+					var rate = 0, i = -1, l = -1
+					if (string == pattern) {
+						rate = 5
+					} else if ((i = string.indexOf(pattern)) == 0) {
+						rate = 3
+					} else if ((j = string.lastIndexOf(pattern)) >= 0 && j == string.length - pattern.length) {
+						rate = 2
+					} else if (i > 0) {
+						rate = 1
+					}
+					return rate
+				}
+				function fuzzyMatch(string, pattern) {
+					var rate = 0
+					if (string.indexOf(' '+pattern+' ') >= 0) {
+						rate = 4
+					} else if (string.indexOf(' '+pattern) >= 0) {
+						rate = 3
+					} else if (string.indexOf(pattern+' ') >= 0) {
+						rate = 2
+					} else if (string.indexOf(pattern) >= 0) {
+						rate = 1
+					}
+					return rate
+				}
 				for (var i in scope.dict) {
 					var item = scope.dict[i]
 					var rate = 0
-					if (search == '' || item.word == search || item.translation.word == search) {
-						rate = 5
-					} else if (item.wordList.indexOf(' '+search+' ') >= 0) {
-						rate = 4
-					} else if (item.wordList.indexOf(' '+search) >= 0) {
-						rate = 3
-					} else if (item.wordList.indexOf(search+' ') >= 0) {
-						rate = 2
-					} else if (item.wordList.indexOf(search) >= 0) {
-						rate = 1
+					if (search == '') {
+						rate = 100
+					} else {
+						rate = 10 * Math.max(
+							fuzzyMatchWord(item.lower_word, search),
+							fuzzyMatchWord(item.translation.lower_word, search))
+						if (!rate) {
+							rate = 5 * Math.max(rate, fuzzyMatch(item.wordList, search))
+						}
+						if (!rate) {
+							rate = Math.max(rate, fuzzyMatch(item.latin_wordList, search))
+						}
 					}
 					if (rate > 0) {
 						// item = scope.clone(item)
@@ -92,25 +137,38 @@
 				})
 				scope.results = results
 			},
+			transliteration: function() {
+				var scope = this
+				var res = new Thai().transliterate(scope.search)
+				return res
+			},
 		}
 	</script>
 </head>
-<body ng:controller="AppController" >
+<body ng-controller="AppController" >
+	<table>
+		<tr>
+			<td>Search text (thai or english): <button type="button" ng-click="clear()">X</button></td>
+			<td><input ng-model="search" size="15" ng-model-instant></td>
+		</tr>
+		<tr>
+			<td>Results: {{results.length}}</td>
+			<td>{{transliteration()}}</td>
+		</tr>
+	</table>
 	<div>
-		Search text (thai or english): <input ng:model="search">
-	</div>
-	<div>
-		Results: {{results.length}}
-		<table>
+		<table class="results">
 			<tr>
 				<th>Thai</th>
 				<th>English</th>
 				<th>Meaning</th>
+				<th>Rate</th>
 			</tr>
-			<tr ng:repeat="r in results | limitTo:50">
-				<td>{{r.translation.word + (r.translation.tl && ' ('+r.translation.tl+')' || '')}}</td>
-				<td>{{r.word + (r.type && ' ('+r.type+')' || '')}}</td>
+			<tr ng-repeat="r in results | limitTo:50">
+				<td>{{r.translation.word + (r.translation.tl &amp;&amp; ' ('+r.translation.tl+')' || '')}}</td>
+				<td>{{r.word + (r.type &amp;&amp; ' ('+r.type+')' || '')}}</td>
 				<td>{{r.meaning}}</td>
+				<td>{{r.rate}}</td>
 			</tr>
 		</table>
 	</div>
