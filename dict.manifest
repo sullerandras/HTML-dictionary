@@ -1,8 +1,9 @@
 CACHE MANIFEST
-#2012-03-09 15:28
+#2012-03-18 11:38
 
 CACHE:
 dict-th.js
+transliterator.js
+latinise.js
 dict.html
-angular-0.10.6.min.js
-
+angular-1.0.0rc1.min.js
